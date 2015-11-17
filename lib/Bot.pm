@@ -19,7 +19,6 @@ has ua => sub { Mojo::UserAgent->new->max_redirects(3) };
 has 'icon';
 has post_as_user => 1;
 
-# TODO responses should go to channel where triggered when possible
 # TODO fix up message updates (provide message ref object with update method)
 
 sub new {
@@ -152,10 +151,15 @@ sub load_plugins {
 
 sub send {
     my ($self, $message, $cb) = @_;
+    $self->send_channel($self->channel_id, $message, $cb);
+}
+
+sub send_channel {
+    my ($self, $channel, $message, $cb) = @_;
     $self->log->debug("< $message");
     $self->ua->post('https://slack.com/api/chat.postMessage', form => {
         token => $self->token,
-        channel => $self->channel_id,
+        channel => $channel,
         text => $message,
         ($self->post_as_user ? (as_user => 1) : (username => $self->name, icon_url => $self->url)),
     }, sub {
@@ -201,12 +205,13 @@ has 'user';
 has 'bot';
 
 sub send {
-    shift->bot->send(@_);
+    my $self = shift;
+    $self->bot->send_channel($self->channel, @_);
 }
 
 sub reply {
     my ($self, $message, $cb) = @_;
-    $self->bot->send($self->bot->user($self->user)->{name} . ': ' . $message, $cb);
+    $self->bot->send_channel($self->channel, $self->bot->user($self->user)->{name} . ': ' . $message, $cb);
 }
 
 1;
