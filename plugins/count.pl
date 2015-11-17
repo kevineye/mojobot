@@ -21,7 +21,7 @@ sub {
                 $bot->update($ref, 'counting: ' . ++$counter);
                 Mojo::IOLoop->timer(0.5 => $update) if $counter < $count;
             };
-            Mojo::IOLoop->timer(0.5 => $update);
+            Mojo::IOLoop->timer(1.5 => $update);
         });
     });
 
