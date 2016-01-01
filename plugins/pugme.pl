@@ -10,6 +10,9 @@
 # Commands:
 #   hubot pug me - Receive a pug
 #   hubot pug bomb N - get N pugs
+#
+# Adapted from:
+#   https://github.com/hubot-scripts/hubot-pugme/blob/master/src/pugme.coffee
 
 use strict;
 

@@ -16,7 +16,7 @@
 #   github.com/delucas
 #
 # Adapted from:
-# https://github.com/hubot-scripts/hubot-thank-you/blob/master/src/thank-you.coffee
+#   https://github.com/hubot-scripts/hubot-thank-you/blob/master/src/thank-you.coffee
 
 use strict;
 use utf8;
