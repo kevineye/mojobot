@@ -2,17 +2,17 @@
 #   A way to interact with the Google Images API.
 #
 # Configuration
-#   HUBOT_GOOGLE_CSE_KEY - Your Google developer API key
-#   HUBOT_GOOGLE_CSE_ID - The ID of your Custom Search Engine
-#   HUBOT_MUSTACHIFY_URL - Optional. Allow you to use your own mustachify instance.
-#   HUBOT_GOOGLE_IMAGES_HEAR - Optional. If set, bot will respond to any line that begins with "image me" or "animate me" without needing to address the bot directly
-#   HUBOT_GOOGLE_SAFE_SEARCH - Optional. Search safety level.
+#   MOJOBOT_GOOGLE_CSE_KEY - Your Google developer API key
+#   MOJOBOT_GOOGLE_CSE_ID - The ID of your Custom Search Engine
+#   MOJOBOT_MUSTACHIFY_URL - Optional. Allow you to use your own mustachify instance.
+#   MOJOBOT_GOOGLE_IMAGES_HEAR - Optional. If set, bot will respond to any line that begins with "image me" or "animate me" without needing to address the bot directly
+#   MOJOBOT_GOOGLE_SAFE_SEARCH - Optional. Search safety level.
+#   MOJOBOT_GOOGLE_IMAGES_FALLBACK - The URL to use when API fails. `{q}` will be replaced with the query string.
 #
 # Commands:
-#   hubot image me <query> - The Original. Queries Google Images for <query> and returns a random top result.
-#   hubot animate me <query> - The same thing as `image me`, except adds a few parameters to try to return an animated GIF instead.
-#   hubot mustache me <url> - Adds a mustache to the specified URL.
-#   hubot mustache me <query> - Searches Google Images for the specified query and mustaches it.
+#   mojobot image me <query> - The Original. Queries Google Images for <query> and returns a random top result.
+#   mojobot animate me <query> - The same thing as `image me`, except adds a few parameters to try to return an animated GIF instead.
+#   mojobot mustache me <url|query> - Adds a mustache to the specified URL or query result.
 #
 # Adapted from:
 #   https://github.com/hubot-scripts/hubot-google-images/blob/master/src/google-images.coffee
@@ -62,6 +62,11 @@ sub {
     $robot->respond(qr/(?:mo?u)?sta(?:s|c)h(?:e|ify)?(?: me)? (.+)/i => sub {
         my ($msg, $imagery) = @_;
         my $mustacheBaseUrl = $ENV{MOJOBOT_MUSTACHIFY_URL};
+        unless ($mustacheBaseUrl) {
+            $msg->send("Sorry, the Mustachify server is not configured.");
+            $msg->send("http://i.imgur.com/BXbGJ1N.png");
+            return
+        }
         $mustacheBaseUrl =~ s{\/$}{};
         $mustacheBaseUrl ||= "http://mustachify.me";
         my $mustachify = "$mustacheBaseUrl/rand?src=";
@@ -123,7 +128,7 @@ sub image_me {
                     $msg->send('Daily image quota exceeded, using alternate source.');
                     deprecated_image($robot, $msg, $query, $animated, $faces, $cb);
                 } else {
-                    $msg->send('Encountered an error :( ' . $res->message);
+                    $msg->send('Encountered an error :( ' . $res->message . "\n" . $res->body);
                 }
                 return;
             }
@@ -140,46 +145,20 @@ sub image_me {
             }
         });
     } else {
+        $msg->send("Google Image Search API is no longer available. " .
+            "Please [setup up Custom Search Engine API](https://github.com/hubot-scripts/hubot-google-images#cse-setup-details).");
         deprecated_image($robot, $msg, $query, $animated, $faces, $cb);
     }
 }
 
 sub deprecated_image {
-    # Using deprecated Google image search API
     my ($robot, $msg, $query, $animated, $faces, $cb) = @_;
-    my $q = {
-        v => '1.0',
-        rsz => '8',
-        q => $query,
-        safe => $ENV{MOJOBOT_GOOGLE_SAFE_SEARCH} || 'active',
-    };
-    if ($animated) {
-        $q->{as_filetype} = 'gif';
-        $q->{q} .= ' animated';
-    }
-    if ($faces) {
-        $q->{as_filetype} = 'jpg';
-        $q->{imgtype} = 'face';
-    }
-
-    $robot->ua->get(Mojo::URL->new('https://ajax.googleapis.com/ajax/services/search/images')->query($q) => sub {
-        my (undef, $tx) = @_;
-        my $err = $tx->error;
-        if ($err) {
-            $msg->send('Encountered an error :( ' . $err->message);
-        }
-        my $res = $tx->res;
-        if ($res->code != 200) {
-            $msg->send('Bad HTTP response :( ' . $res->code);
-        }
-        my $images = $res->json;
-        if ($images and $images->{responseData}{results} and @{$images->{responseData}{results}}) {
-            my $image = $images->{responseData}{results}[rand @{$images->{responseData}{results}}];
-            $cb->(ensure_result($image->{unescapedUrl}, $animated));
-        } else {
-            $msg->send("Sorry, I found no results for '$query'.");
-        }
-    });
+    # Show a fallback image
+    my $imgUrl = $ENV{MOJOBOT_GOOGLE_IMAGES_FALLBACK} ||
+        'http://i.imgur.com/CzFTOkI.png';
+    my $encoded_query = url_escape($query);
+    $imgUrl =~ s{\{q\}}{$encoded_query}g;
+    $cb->(ensure_result($imgUrl, $animated));
 }
 
 # Forces giphy result to use animated version
