@@ -5,7 +5,8 @@
 #   mpc command line executable
 #
 # Configuration:
-#   MOJOBOT_MPC - mpc command
+#   MOJOBOT_MPC_CMD - mpc command
+#   MOJOBOT_MPC_CHANNEL - mpc channel
 #
 # Commands:
 #   mpc [status]
@@ -22,27 +23,77 @@ sub {
 
     $robot->respond(qr/mpc($| .*)/i, sub {
         my ($msg, $cmd) = @_;
-        $msg->send(mpc($cmd));
+        my $out = mpc($cmd);
+        $msg->send($out) if $out;
     });
 
     my $mpc_cmd;
     sub mpc {
         my ($cmd) = @_;
         $mpc_cmd ||= find_mpc();
-        return scalar qx{$mpc_cmd $cmd 2>&1};
+        return $mpc_cmd && scalar qx{$mpc_cmd $cmd 2>&1};
     }
 
     sub find_mpc {
-        return $ENV{MOJOBOT_MPC} if $ENV{MOJOBOT_MPC};
+        return $ENV{MOJOBOT_MPC_CMD} if $ENV{MOJOBOT_MPC_CMD};
 
         my $which_mpc = qx{which mpc};
         chomp $which_mpc;
         return $which_mpc if $which_mpc;
 
         my $which_docker = qx{which docker};
-        chomp $which_docker;
-        system "$which_docker pull jess/mpd 2>/dev/null >/dev/null &";
+        chomp $which_docker ;
         return "$which_docker run --rm --net host --entrypoint mpc jess/mpd";
     }
+
+    $robot->on(start => sub {
+        my $mpc_cmd = find_mpc();
+        open my $fh, '-|', "$mpc_cmd idleloop </dev/null" or return;
+        my $in = Mojo::IOLoop::Stream->new($fh)->timeout(0);
+
+        $in->on(read => sub {
+            my ($stream, $bytes) = @_;
+            $in->{line_buffer} .= $bytes;
+            while ((my $i = index $in->{line_buffer}, "\n") > -1) {
+                $in->emit(line => substr $in->{line_buffer}, 0, $i);
+                $in->{line_buffer} = substr $in->{line_buffer}, $i+1;
+            }
+        });
+
+        $in->on(close => sub {
+            my ($stream) = @_;
+            $in->emit(line => $in->{line_buffer}) if defined $in->{line_buffer} and length $in->{line_buffer};
+            $robot->log->warn('mpd idleloop closed');
+        });
+
+        my $last_status = '';
+        $in->on(line => sub {
+            my ($stream, $line) = @_;
+            chomp $line;
+            if ($line eq 'player') {
+                my $msg = mpc('status');
+                my ($song, $playpause) = $msg =~ m{^(.*)\n\[(\w+)\]};
+                if ($playpause eq 'playing') {
+                    my $status = "Playing $song";
+                    if ($status ne $last_status) {
+                        $last_status = $status;
+                        if ($ENV{MOJOBOT_MPC_CHANNEL} and $robot->io->can('send_channel')) {
+                            $robot->io->send_channel($ENV{MOJOBOT_MPC_CHANNEL}, $status);
+                        } else {
+                            $robot->send($status);
+                        }
+                    }
+                }
+            } elsif ($line eq 'output') {
+                # ignore
+            } elsif ($line eq 'options') {
+                # ignore
+            } else {
+                $robot->log->warn("unknown mpd idleloop message: $line");
+            }
+        });
+
+        $in->start;
+    });
 
 };
