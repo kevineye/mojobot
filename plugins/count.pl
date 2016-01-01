@@ -15,10 +15,10 @@ sub {
         $count ||= 10;
         my $counter = 0;
         $m->send("counting: $counter", sub {
-            my ($ref) = @_;
+            my ($out) = @_;
             my $update;
             $update = sub {
-                $bot->update($ref, 'counting: ' . ++$counter);
+                $out->update('counting: ' . ++$counter);
                 Mojo::IOLoop->timer(0.5 => $update) if $counter < $count;
             };
             Mojo::IOLoop->timer(1.5 => $update);
