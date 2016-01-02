@@ -211,7 +211,6 @@ sub init {
         $self->bot->log->info('connected to slack channel ' . $self->channel . ' with token ' . $self->token);
 
         Mojo::IOLoop->recurring(60 => sub {
-            $self->bot->log->debug('ping');
             $rtm->ping;
         });
 
