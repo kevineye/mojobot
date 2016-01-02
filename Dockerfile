@@ -1,4 +1,9 @@
 FROM perl:5.20
+MAINTAINER kevineye@gmail.com
+
+# add docker so mojobot can access other containers
+RUN apt-get update -q \
+ && apt-get install -y -q docker
 
 # copy app and libs into place
 COPY . /app

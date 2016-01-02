@@ -48,7 +48,13 @@ sub {
 
     $robot->on(start => sub {
         my $mpc_cmd = find_mpc();
-        open my $fh, '-|', "$mpc_cmd idleloop </dev/null" or return;
+        my $fh;
+        my $pid = $mpc_cmd && open $fh, '-|', "$mpc_cmd idleloop </dev/null";
+        if ($pid) {
+            $robot->log->info("connected to mpd using $mpc_cmd");
+        } else {
+            $robot->log->warn("connection to mpd failed" . ($mpc_cmd ? " ($mpc_cmd)" : "(no command)"));
+        }
         my $in = Mojo::IOLoop::Stream->new($fh)->timeout(0);
 
         $in->on(read => sub {
