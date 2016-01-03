@@ -58,7 +58,6 @@ sub {
         return;
     };
 
-    $DB::single = 1;
     my $mpc_cmd = $find_mpc->();
     my $mpc = sub {
         my ($cmd) = @_;
