@@ -16,5 +16,5 @@ if ($ENV{MOJOBOT_SLACK_TOKEN}) {
 }
 
 Bot->new( io => $io, name => shift || $ENV{MOJOBOT_NAME} || 'mojobot' )
-    ->load_plugins("$RealBin/plugins/*")
+    ->load_plugins("$RealBin/plugins/*.pl")
     ->start;
