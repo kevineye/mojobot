@@ -9,8 +9,8 @@ A port of [HUBOT](https://hubot.github.com/) and some [plugins](https://github.c
         -e MOJOBOT_SLACK_TOKEN=... \
         -e MOJOBOT_NAME=mojobot \
         -e MOJOBOT_SLACK_CHANNEL=#general \
-        kevineye/mojobot
+        toolbox.acsu.buffalo.edu:5000/mojobot
 
 
     # run development mode, console IO
-    docker run --rm -it -v $PWD:/app kevineye/mojobot
+    docker run --rm -it -v $PWD:/app toolbox.acsu.buffalo.edu:5000/mojobot
