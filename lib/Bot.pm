@@ -145,6 +145,8 @@ sub init {}
 package Bot::IO::Console;
 use Mojo::Base 'Bot::IO';
 
+STDOUT->autoflush(1);
+
 has in => sub { Mojo::IOLoop::Stream->new(\*STDIN)->timeout(0) };
 
 sub init {
@@ -171,12 +173,16 @@ sub init {
     $stdin->on(line => sub {
         my ($stream, $line) = @_;
         chomp $line;
+        exit if $line eq 'exit';
         my $message = Bot::Message->new( bot => $self->bot, text => $line );
         $self->bot->safe_emit(message => $message);
         $self->bot->safe_emit(($message->is_to_bot ? 'respond' : 'hear'), $message) if length $message->text;
+        $self->print_prompt;
     });
 
     Mojo::IOLoop->next_tick(sub {
+        print "Use ctrl-D or type 'exit' to quit.\n";
+        $self->print_prompt;
         $self->bot->safe_emit('start');
     });
 
@@ -185,9 +191,14 @@ sub init {
 
 sub send {
     my ($self, $text, $cb) = @_;
-    printf "%s> %s\n", $self->bot->name, $text;
+    printf "\r%s> %s\n", $self->bot->name, $_ for split /\r|\n/, $text;
     $cb->(Bot::Message->new(text => $text, bot => $self->bot)) if $cb;
+    $self->print_prompt;
     return $self;
+}
+
+sub print_prompt {
+    print "\r                \ryou> ";
 }
 
 
