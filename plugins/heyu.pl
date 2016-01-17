@@ -21,6 +21,7 @@
 
 
 use strict;
+use utf8;
 
 sub {
     my ($robot) = @_;
