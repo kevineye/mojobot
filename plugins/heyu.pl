@@ -14,6 +14,11 @@
 #   heyu on|off <house><unit>
 #   heyu allon|alloff <house>
 #   heyu turn <house><unit> on|off
+#   turn all|everything on|off
+#   turn <house><unit>|<label> on|off
+#   turn on|off all|everything
+#   turn on|off <house><unit>|<label>
+
 
 use strict;
 
@@ -42,17 +47,45 @@ sub {
 
     $robot->log->warn("heyu is not installed or cannot connect to hardware interface") unless $working;
 
+    my @working_responses = (
+        'working on that…',
+        'let me see what I can do…',
+        'I’ll get right on that…',
+        'just a sec…',
+        'coming right up…',
+        'hang on…',
+    );
+
     my $heyu_handler = sub {
         my ($msg, $cmd) = @_;
         if ($working) {
-            my $out = $heyu->($cmd);
-            $msg->send($out || 'ok');
+            $msg->send($working_responses[rand @working_responses], sub {
+                my $m = shift;
+                my $out = $heyu->($cmd);
+                $m->update($out || 'ok');
+            });
         } else {
-            $msg->send("Sorry, heyuc is not installed or cannot connect to hardware interface.");
+            $msg->send("Sorry, heyu is not installed or cannot connect to hardware interface.");
         }
     };
+
     $robot->respond(qr/heyu($| .*)/i, $heyu_handler);
+
     $robot->hear(qr/^heyu($| .*)/i, $heyu_handler);
+
+    $robot->hear(qr/^turn (\w+) (on|off)$|^turn (on|off) (\w+)$/i, sub {
+        my ($msg, $code, $onoff) = @_;
+        $code ||= $_[4];
+        $onoff ||= $_[3];
+        my $cmd;
+        if (lc $code eq 'all' or lc $code eq 'everything') {
+            $cmd = "macro downstairs_$onoff";
+        } else {
+            $cmd = "$onoff $code";
+        }
+        $heyu_handler->($msg, $cmd);
+    });
+
 
     if ($working) {
         $robot->on(start => sub {
