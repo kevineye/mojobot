@@ -17,6 +17,8 @@
 #   mpc next
 #   mpc prev
 #   mpc help
+#
+# All commands also respond to "mpd" or "music" instead of "mpc".
 
 use strict;
 
@@ -77,8 +79,8 @@ sub {
             $msg->send("Sorry, mpc is not installed or cannot connect to mpd.");
         }
     };
-    $robot->respond(qr/mp[cd]($| .*)/i, $mpc_handler);
-    $robot->hear(qr/^mp[cd]($| .*)/i, $mpc_handler);
+    $robot->respond(qr/(?:mp[cd]|music)($| .*)/i, $mpc_handler);
+    $robot->hear(qr/^(?:mp[cd]|music)($| .*)/i, $mpc_handler);
 
     if ($working) {
         $robot->on(start => sub {
